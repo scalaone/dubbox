@@ -98,70 +98,73 @@ public class DecodeableRpcInvocation extends RpcInvocation implements Codec, Dec
             setAttachment(Constants.VERSION_KEY, in.readUTF());
 
             setMethodName(in.readUTF());
-            try {
-                Object[] args;
-                Class<?>[] pts;
+            Object[] args;
+            Class<?>[] pts;
 
-                // NOTICE modified by lishen
-                int argNum = in.readInt();
-                if (argNum >= 0) {
-                    if (argNum == 0) {
-                        pts = DubboCodec.EMPTY_CLASS_ARRAY;
-                        args = DubboCodec.EMPTY_OBJECT_ARRAY;
-                    } else {
-                        args = new Object[argNum];
-                        pts = new Class[argNum];
-                        for (int i = 0; i < args.length; i++) {
-                            try {
-                                args[i] = in.readObject();
-                                pts[i] = args[i].getClass();
-                            } catch (Exception e) {
-                                if (log.isWarnEnabled()) {
-                                    log.warn("Decode argument failed: " + e.getMessage(), e);
-                                }
-                            }
-                        }
-                    }
+            // NOTICE modified by lishen
+            // SO modified by haha, revert no compatibility serialization
+            /*
+            int argNum = in.readInt();
+            if (argNum >= 0) {
+                if (argNum == 0) {
+                    pts = DubboCodec.EMPTY_CLASS_ARRAY;
+                    args = DubboCodec.EMPTY_OBJECT_ARRAY;
                 } else {
-                    String desc = in.readUTF();
-                    if (desc.length() == 0) {
-                        pts = DubboCodec.EMPTY_CLASS_ARRAY;
-                        args = DubboCodec.EMPTY_OBJECT_ARRAY;
-                    } else {
-                        pts = ReflectUtils.desc2classArray(desc);
-                        args = new Object[pts.length];
-                        for (int i = 0; i < args.length; i++) {
-                            try {
-                                args[i] = in.readObject(pts[i]);
-                            } catch (Exception e) {
-                                if (log.isWarnEnabled()) {
-                                    log.warn("Decode argument failed: " + e.getMessage(), e);
-                                }
+                    args = new Object[argNum];
+                    pts = new Class[argNum];
+                    for (int i = 0; i < args.length; i++) {
+                        try {
+                            args[i] = in.readObject();
+                            pts[i] = args[i].getClass();
+                        } catch (Exception e) {
+                            if (log.isWarnEnabled()) {
+                                log.warn("Decode argument failed: " + e.getMessage(), e);
                             }
                         }
                     }
                 }
-                setParameterTypes(pts);
-
-                Map<String, String> map = (Map<String, String>) in.readObject(Map.class);
-                if (map != null && map.size() > 0) {
-                    Map<String, String> attachment = getAttachments();
-                    if (attachment == null) {
-                        attachment = new HashMap<String, String>();
-                    }
-                    attachment.putAll(map);
-                    setAttachments(attachment);
-                }
-                //decode argument ,may be callback
+            } else {
+            */
+            String desc = in.readUTF();
+            if (desc.length() == 0) {
+                pts = DubboCodec.EMPTY_CLASS_ARRAY;
+                args = DubboCodec.EMPTY_OBJECT_ARRAY;
+            } else {
+                pts = ReflectUtils.desc2classArray(desc);
+                args = new Object[pts.length];
                 for (int i = 0; i < args.length; i++) {
-                    args[i] = decodeInvocationArgument(channel, this, pts, i, args[i]);
+                    try {
+                        args[i] = in.readObject(pts[i]);
+                    } catch (Exception e) {
+                        if (log.isWarnEnabled()) {
+                            log.warn("Decode argument failed: " + e.getMessage(), e);
+                        }
+                    }
                 }
-
-                setArguments(args);
-
-            } catch (ClassNotFoundException e) {
-                throw new IOException(StringUtils.toString("Read invocation data failed.", e));
             }
+            /*
+            }
+            */
+            setParameterTypes(pts);
+
+            Map<String, String> map = (Map<String, String>) in.readObject(Map.class);
+            if (map != null && map.size() > 0) {
+                Map<String, String> attachment = getAttachments();
+                if (attachment == null) {
+                    attachment = new HashMap<String, String>();
+                }
+                attachment.putAll(map);
+                setAttachments(attachment);
+            }
+            //decode argument ,may be callback
+            for (int i = 0; i < args.length; i++) {
+                args[i] = decodeInvocationArgument(channel, this, pts, i, args[i]);
+            }
+
+            setArguments(args);
+
+        } catch (ClassNotFoundException e) {
+            throw new IOException(StringUtils.toString("Read invocation data failed.", e));
         } finally {
             // modified by lishen
             if (in instanceof Cleanable) {
